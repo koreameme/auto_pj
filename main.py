@@ -2,6 +2,7 @@ import os
 import requests
 import logging
 import re
+import argparse
 from datetime import datetime
 from dotenv import load_dotenv
 
@@ -78,35 +79,96 @@ class AutoPublisherController:
                 updated_products.append(prod)
         return updated_products
 
-    def run_pipeline(self):
+    def run_pipeline(self, category: str):
         """자동화 파이프라인의 전체 실행 컨트롤"""
         logging.info("=========================================")
-        logging.info("자동화 포스팅 파이프라인 실행 시작")
+        logging.info(f"자동화 포스팅 파이프라인 실행 시작: {category}")
         logging.info("=========================================")
 
-        # 1단계: 오늘의 건강 타겟 키워드 선정 (아침 방송 기반)
-        target_keyword = self.analyzer.get_target_keyword()
-        logging.info(f"선정된 오늘의 키워드: {target_keyword}")
+        # 1단계: 오늘의 타겟 키워드/이슈 선정
+        topic = self.analyzer.get_topic(category)
+        target_keyword = topic["keyword"]
+        logging.info(f"선정된 오늘의 주제: {topic}")
 
-        # 2단계: 쿠팡 파트너스 API 상품 수집
-        products = self.coupang.search_products(target_keyword, limit=3)
-        if not products:
-            logging.error("추천할 상품 리스트를 수집하지 못했습니다. 파이프라인을 종료합니다.")
-            return
+        if category == "health":
+            # 2단계: 쿠팡 파트너스 API 상품 수집
+            products = self.coupang.search_products(target_keyword, limit=3)
+            if not products:
+                logging.error("추천할 상품 리스트를 수집하지 못했습니다. 파이프라인을 종료합니다.")
+                return
 
-        # 3단계: 이미지 로컬 다운로드 가동 [방안 B]
-        processed_products = self._download_product_images(target_keyword, products)
+            # 3단계: 이미지 로컬 다운로드 가동 [방안 B]
+            processed_products = self._download_product_images(target_keyword, products)
 
-        # 4단계: AI 콘텐츠 초안 생성 (OpenAI API 또는 Fallback)
-        raw_content = self.writer.generate_blog_post(target_keyword, processed_products)
+            # 4단계: AI 콘텐츠 초안 생성 (OpenAI API 또는 Fallback)
+            raw_content = self.writer.generate_blog_post(category, topic, processed_products)
+        else:
+            # AI 뉴스 및 최신 이슈 카테고리는 쿠팡 상품 수집 스킵
+            raw_content = self.writer.generate_blog_post(category, topic, None)
 
         # 5단계: Jekyll/Hugo 포스팅 마크다운 파일로 영구 기록
-        saved_file = self.writer.write_to_markdown_file(target_keyword, raw_content, self.post_dir)
+        saved_file = self.writer.write_to_markdown_file(category, target_keyword, raw_content)
 
         logging.info("=========================================")
         logging.info(f"파이프라인 성공 완료. 생성된 포스트: {saved_file}")
         logging.info("=========================================")
 
+def determine_category_by_time() -> str:
+    from datetime import datetime, timedelta, timezone
+    # GitHub Actions 등 UTC 환경을 고려하여 KST 구하기
+    kst = datetime.now(timezone.utc) + timedelta(hours=9)
+    hour = kst.hour
+    
+    logging.info(f"현재 KST 시각: {kst.strftime('%Y-%m-%d %H:%M:%S')} (시간대: {hour}시)")
+
+    # 1. 아침 시간대 (05:00 ~ 11:59): 건강 (아침방송 연동 및 종합)
+    if 5 <= hour < 12:
+        return "health"
+    # 2. 점심 시간대 (12:00): AI 뉴스
+    elif hour == 12:
+        return "ai_news"
+    # 3. 오후 1시 (13:00): 최신 이슈
+    elif hour == 13:
+        return "latest_issue"
+    # 4. 오후 2~3시 (14:00~15:59): AI 뉴스 (14:30 스케줄 대응)
+    elif hour in [14, 15]:
+        return "ai_news"
+    # 5. 오후 4시 (16:00): 최신 이슈
+    elif hour == 16:
+        return "latest_issue"
+    # 6. 오후 5시 (17:00~17:59): AI 뉴스 (17:30 스케줄 대응)
+    elif hour == 17:
+        return "ai_news"
+    # 7. 오후 6시 (18:00~18:59): 최신 이슈 (18:30 스케줄 대응)
+    elif hour == 18:
+        return "latest_issue"
+    # 8. 오후 7시 (19:00~19:59): AI 뉴스 (19:30 스케줄 대응)
+    elif hour == 19:
+        return "ai_news"
+    # 9. 오후 8시 (20:00): 최신 이슈
+    elif hour == 20:
+        return "latest_issue"
+    # 10. 오후 9시 (21:00): 건강
+    elif hour == 21:
+        return "health"
+    # 11. 야간 (22:00 ~ 04:59): 최신 이슈 또는 건강
+    else:
+        return "latest_issue"
+
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Auto Revenue Blog Publisher Pipeline")
+    parser.add_argument(
+        "--category",
+        type=str,
+        default="auto",
+        choices=["auto", "health", "ai_news", "latest_issue"],
+        help="Category of the post to generate (default: auto)"
+    )
+    args = parser.parse_args()
+
+    category = args.category
+    if category == "auto":
+        category = determine_category_by_time()
+
     controller = AutoPublisherController()
-    controller.run_pipeline()
+    controller.run_pipeline(category)

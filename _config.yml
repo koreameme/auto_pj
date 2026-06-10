@@ -1,0 +1,6 @@
+title: "Auto Revenue Hub"
+description: "자동화 수익형 블로그 시스템 - 건강 정보, AI 뉴스, 실시간 이슈 포스팅 제공"
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
