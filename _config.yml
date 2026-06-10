@@ -1,6 +1,62 @@
-title: "Auto Revenue Hub"
-description: "자동화 수익형 블로그 시스템 - 건강 정보, AI 뉴스, 실시간 이슈 포스팅 제공"
-theme: minima
+# Site Settings
+title: "Top10shop"
+tagline: "BEST제품 소개 블로그"
+description: "AI로 분석한 가장 BEST한 제품을 소개합니다."
+url: "https://koreameme.github.io"
+baseurl: "/auto_pj"
+
+# Authors
+authors:
+  admin:
+    name: "Top10shop"
+    display_name: "Top10shop Admin"
+    avatar: "/assets/images/logo.png"
+    web: "https://koreameme.github.io/auto_pj"
+    description: "AI를 활용하여 사용자 후기와 데이터를 분석, 가장 신뢰할 수 있는 베스트 10 상품을 추천합니다."
+
+# Permalinks
+permalink: /:title/
+
+# Pagination
+paginate: 6
+paginate_path: /page:num/
+
+# Archives
+jekyll-archives:
+  enabled:
+    - categories
+    - tags
+  layout: archive
+  permalinks:
+    category: /category/:name/
+    tag: /tag/:name/
+
+# Plugins
 plugins:
+  - jekyll-paginate
+  - jekyll-sitemap
   - jekyll-feed
   - jekyll-seo-tag
+  - jekyll-archives
+
+# Markdown Configuration
+markdown: kramdown
+highlighter: rouge
+
+# Excludes (Jekyll 빌드에서 파이썬 관련 파일 제외)
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/
+  - venv/
+  - .env
+  - .env.template
+  - main.py
+  - keyword_analyzer.py
+  - coupang_partner.py
+  - content_writer.py
+  - requirements.txt
+  - test_posts/
+  - .git/
+  - .github/
