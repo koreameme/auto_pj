@@ -27,6 +27,26 @@ class AutoPublisherController:
         self.image_dir = "assets/images/posts"
         self.post_dir = "_posts"
 
+    def _get_jekyll_baseurl(self) -> str:
+        """_config.yml에서 baseurl 설정을 파싱하여 반환"""
+        baseurl = ""
+        try:
+            config_path = "_config.yml"
+            if os.path.exists(config_path):
+                with open(config_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if line.strip().startswith("baseurl:"):
+                            parts = line.split(":", 1)
+                            if len(parts) > 1:
+                                val = parts[1].strip().strip('"').strip("'")
+                                if val and val != "/":
+                                    baseurl = val
+                                    break
+                logging.info(f"Jekyll baseurl 감지됨: {baseurl}")
+        except Exception as e:
+            logging.error(f"Jekyll baseurl 읽기 중 오류 발생: {e}")
+        return baseurl
+
     def _ensure_directories(self):
         """이미지 및 포스팅 폴더 생성 보장"""
         if not os.path.exists(self.image_dir):
@@ -43,6 +63,7 @@ class AutoPublisherController:
         
         # 파일명 정제 (한글/영어/숫자 외 제거)
         safe_keyword = re.sub(r'[^a-zA-Z0-9가-힣_-]', '_', keyword)
+        baseurl = self._get_jekyll_baseurl()
 
         updated_products = []
         for idx, prod in enumerate(products, 1):
@@ -56,8 +77,8 @@ class AutoPublisherController:
             img_filename = f"{date_str}-{safe_keyword}-{idx}.jpg"
             local_img_path = os.path.join(self.image_dir, img_filename)
             
-            # 마크다운 본문에 삽입될 블로그 루트 기준의 경로
-            blog_relative_path = f"/assets/images/posts/{img_filename}"
+            # 마크다운 본문에 삽입될 블로그 루트 기준의 경로 (baseurl 접두사 추가)
+            blog_relative_path = f"{baseurl}/assets/images/posts/{img_filename}"
 
             try:
                 logging.info(f"상품 이미지 다운로드 시도 ({idx}): {original_img_url}")
@@ -66,16 +87,16 @@ class AutoPublisherController:
                 img_res = requests.get(original_img_url, headers=headers, timeout=10)
                 
                 if img_res.status_code == 200:
-                    with open(local_img_path, "wb") as f:
-                        f.write(img_res.content)
-                    logging.info(f"이미지 로컬 저장 성공: {local_img_path}")
-                    # 복사하여 이미지 경로 수정
-                    updated_prod = prod.copy()
-                    updated_prod["productImage"] = blog_relative_path
-                    updated_products.append(updated_prod)
+                     with open(local_img_path, "wb") as f:
+                         f.write(img_res.content)
+                     logging.info(f"이미지 로컬 저장 성공: {local_img_path}")
+                     # 복사하여 이미지 경로 수정
+                     updated_prod = prod.copy()
+                     updated_prod["productImage"] = blog_relative_path
+                     updated_products.append(updated_prod)
                 else:
-                    logging.warning(f"이미지 다운로드 실패 (HTTP {img_res.status_code}) - 원본 링크를 유지합니다.")
-                    updated_products.append(prod)
+                     logging.warning(f"이미지 다운로드 실패 (HTTP {img_res.status_code}) - 원본 링크를 유지합니다.")
+                     updated_products.append(prod)
             except Exception as e:
                 logging.error(f"이미지 다운로드 예외 발생: {e} - 원본 링크를 유지합니다.")
                 updated_products.append(prod)
