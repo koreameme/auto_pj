@@ -1,7 +1,7 @@
 # Site Settings
 title: "Top10shop"
-tagline: "BEST제품 소개 블로그"
-description: "AI로 분석한 가장 BEST한 제품을 소개합니다."
+tagline: "데이터 기반 스마트 쇼핑 가이드"
+description: "수만 건의 실구매 후기와 가격 데이터를 분석해 가성비 TOP 상품만 엄선했습니다. 잘못된 선택으로 낭비하는 시간과 비용, 이제 그만."
 url: "https://koreameme.github.io"
 baseurl: "/auto_pj"
 

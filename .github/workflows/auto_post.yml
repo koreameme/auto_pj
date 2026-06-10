@@ -27,11 +27,16 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    concurrency:
+      group: auto-publish
+      cancel-in-progress: false  # 큐에 넣어서 순차 실행 (취소 X)
     permissions:
-      contents: write  # Actions Runner의 저장소 쓰기 권한 허용
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 전체 히스토리 가져오기 (rebase 충돌 방지)
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -57,9 +62,10 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add _posts/ assets/images/posts/
-          # 변경 사항이 있을 때만 커밋 및 푸시 진행
           if ! git diff --cached --quiet; then
             git commit -m "feat: Auto-published blog post via GitHub Actions"
+            # 원격 변경사항을 rebase로 병합 후 push (동시 실행 충돌 방지)
+            git pull --rebase origin master
             git push origin master
           else
             echo "No new posts generated."

@@ -113,10 +113,41 @@ ga('send', 'pageview');
 ================================================== -->
 <div class="mainheading">
     <h1 class="sitetitle">{{ site.name }}</h1>
-    <p class="lead">
+    <p class="lead">{{ site.tagline }}</p>
+    <p class="site-subdesc">
         {{ site.description }}
     </p>
+    <div class="site-badges">
+        <span class="badge-item">📊 실구매 후기 분석</span>
+        <span class="badge-item">💰 최저가 비교</span>
+        <span class="badge-item">🏆 카테고리별 TOP 10</span>
+        <span class="badge-item">🔄 매일 업데이트</span>
+    </div>
 </div>
+<style>
+.site-subdesc {
+    color: #666;
+    font-size: 0.95rem;
+    margin-top: -8px;
+    margin-bottom: 12px;
+    max-width: 600px;
+}
+.site-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.badge-item {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.82rem;
+    color: #555;
+    font-weight: 500;
+}
+</style>
 
 <!-- Content
 ================================================== -->
