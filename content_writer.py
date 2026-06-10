@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 SLIDE_BANNER_LINKS = [
     {"label": "💊 오늘의 건강 베스트셀러 보러가기",  "url": "https://link.coupang.com/a/cSECTJ"},
     {"label": "🏠 생활용품 오늘의 특가 확인",        "url": "https://link.coupang.com/a/cSECTK"},
-    {"label": "📱 전자기기 최저가 & 리얼 후기 보기", "url": "https://link.coupang.com/a/cSECTL"},
+    {"label": "📱 전자기기 최저가 &amp; 리얼 후기 보기", "url": "https://link.coupang.com/a/cSECTL"},
     {"label": "🎁 부모님 선물용 건강식품 인기 TOP",  "url": "https://link.coupang.com/a/cSECTM"},
     {"label": "🌿 유산균·비타민 가성비 종결 제품",   "url": "https://link.coupang.com/a/cSECTN"},
 ]
@@ -168,7 +168,7 @@ class ContentWriter:
 1. 제목(#): 독자의 고통·호기심 자극. 예 → "진작 알았더라면... 아침방송 난리난 {keyword} 비교 TOP3"
 2. 서론: 오늘 아침 방송 언급 + 건강 위기감 소구
 3. 상품별: 수식어(가성비 1위·재구매율 최고 등) + 장기 복용 리얼 후기 스토리텔링
-         각 상품 하단: ![상품명](이미지) 및 [▶ 최저가 및 리얼 후기 보러가기](링크)
+         각 상품 하단: ![상품명](이미지) 및 <a href="링크" target="_blank" rel="noopener noreferrer">▶ 최저가 및 리얼 후기 보러가기</a>
 4. 결론: 타겟별 최종 추천 + 구매 촉구
 5. 맨 마지막: 쿠팡 파트너스 수수료 안내 문구
 6. 마크다운 본문만 출력(서두 대화 제외)
@@ -196,7 +196,7 @@ class ContentWriter:
 
 ![{p['productName']}]({p['productImage']})
 
-[▶ 최저가 혜택 및 리얼 후기 보러가기]({p['productUrl']})
+<a href="{p['productUrl']}" target="_blank" rel="noopener noreferrer">▶ 최저가 혜택 및 리얼 후기 보러가기</a>
 
 ---
 """
