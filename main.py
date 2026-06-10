@@ -118,12 +118,29 @@ class AutoPublisherController:
         # 6단계: 텔레그램 발행 완료 알림 전송
         if saved_file:
             post_filename = os.path.basename(saved_file)
+            
+            # permalink: /:title/ 에 맞춰 날짜(YYYY-MM-DD-)와 확장자(.md)를 제외한 슬러그 파싱
+            match = re.match(r'^\d{4}-\d{2}-\d{2}-(.+)\.md$', post_filename)
+            if match:
+                post_title_slug = match.group(1)
+            else:
+                post_title_slug = post_filename.replace('.md', '')
+            
+            # 한글 URL 인코딩 처리
+            import urllib.parse
+            encoded_slug = urllib.parse.quote(post_title_slug)
+            post_url = f"https://koreameme.github.io/auto_pj/{encoded_slug}/"
+            
             msg = (
-                f"🎉 <b>[Top10shop] 새 글 발행 완료</b>\n\n"
-                f"📌 <b>주제/키워드</b>: {target_keyword}\n"
-                f"📁 <b>카테고리</b>: {category}\n"
-                f"📄 <b>파일명</b>: <code>{post_filename}</code>\n\n"
-                f"✅ GitHub Actions 저장소 동기화 대기 중..."
+                f"🎉 <b>[Top10shop] 신규 콘텐츠 발행 완료!</b>\n\n"
+                f"수집된 데이터와 AI 분석을 기반으로 고품질의 포스팅이 블로그에 자동 배포되었습니다.\n\n"
+                f"📌 <b>포스팅 정보</b>\n"
+                f"• <b>타겟 키워드</b>: {target_keyword}\n"
+                f"• <b>카테고리</b>: {category}\n"
+                f"• <b>발행 일시</b>: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"🔗 <b>생성된 블로그 포스트 보기</b>\n"
+                f"<a href=\"{post_url}\">{post_url}</a>\n\n"
+                f"✅ GitHub Actions 저장소 동기화가 진행 중이며, 잠시 후 위 링크에서 확인하실 수 있습니다."
             )
             self.notifier.send_message(msg)
 
