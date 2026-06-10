@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from keyword_analyzer import KeywordAnalyzer
 from coupang_partner import CoupangPartnerAPI
 from content_writer import ContentWriter
+from telegram_notifier import TelegramNotifier
 
 load_dotenv()
 
@@ -22,6 +23,7 @@ class AutoPublisherController:
         self.analyzer = KeywordAnalyzer()
         self.coupang = CoupangPartnerAPI()
         self.writer = ContentWriter()
+        self.notifier = TelegramNotifier()
         self.image_dir = "assets/images/posts"
         self.post_dir = "_posts"
 
@@ -112,6 +114,18 @@ class AutoPublisherController:
         logging.info("=========================================")
         logging.info(f"파이프라인 성공 완료. 생성된 포스트: {saved_file}")
         logging.info("=========================================")
+
+        # 6단계: 텔레그램 발행 완료 알림 전송
+        if saved_file:
+            post_filename = os.path.basename(saved_file)
+            msg = (
+                f"🎉 <b>[Top10shop] 새 글 발행 완료</b>\n\n"
+                f"📌 <b>주제/키워드</b>: {target_keyword}\n"
+                f"📁 <b>카테고리</b>: {category}\n"
+                f"📄 <b>파일명</b>: <code>{post_filename}</code>\n\n"
+                f"✅ GitHub Actions 저장소 동기화 대기 중..."
+            )
+            self.notifier.send_message(msg)
 
 def determine_category_by_time() -> str:
     from datetime import datetime, timedelta, timezone

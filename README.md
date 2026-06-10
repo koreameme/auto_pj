@@ -76,6 +76,8 @@ graph TD
 * `COUPANG_ACCESS_KEY`: 쿠팡 파트너스 Access Key
 * `COUPANG_SECRET_KEY`: 쿠팡 파트너스 Secret Key
 * `GH_PAT`: GitHub Actions가 본인의 리포지토리에 커밋 및 푸시할 수 있도록 권한을 주는 Personal Access Token (또는 워크플로우 권한 설정을 변경하여 `GITHUB_TOKEN`에 쓰기 권한 부여 가능)
+* `TELEGRAM_BOT_TOKEN`: 텔레그램 알림 봇 API 토큰
+* `TELEGRAM_CHAT_ID`: 텔레그램 알림 수신 대상 채팅 ID (개인 ID 또는 그룹 ID)
 
 ---
 
