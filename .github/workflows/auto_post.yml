@@ -1,0 +1,63 @@
+name: Auto Blog Posting Pipeline
+
+on:
+  schedule:
+    # 매일 한국 시간 오전 10시 30분 (UTC 01:30) 자동 실행
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+    # 깃허브 웹 UI에서 테스트를 위해 수동으로 즉시 가동할 수 있는 트리거 활성화
+
+permissions:
+  contents: write # 리포지토리에 새 포스팅 파일(마크다운, 이미지)을 커밋/푸시하기 위해 쓰기 권한 허용
+
+jobs:
+  run-auto-post:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. 깃허브 소스 코드 체크아웃
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # 히스토리를 불러와 안전한 푸시 지원
+
+    # 2. 파이썬 환경 설정
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip' # 패키지 다운로드 캐싱으로 성능 향상
+
+    # 3. 필요한 종속성 라이브러리 설치
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 4. 파이썬 스크립트 실행 (환경 변수로 API Key 주입)
+    - name: Run Script to Generate Post
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        COUPANG_ACCESS_KEY: ${{ secrets.COUPANG_ACCESS_KEY }}
+        COUPANG_SECRET_KEY: ${{ secrets.COUPANG_SECRET_KEY }}
+      run: |
+        python main.py
+
+    # 5. 생성된 마크다운 문서 및 다운로드된 이미지 파일을 자동으로 커밋 및 푸시
+    - name: Commit and Push Changes
+      run: |
+        # 깃허브 Actions 봇을 작성자로 설정
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        
+        # 새로 생성된 포스트(_posts/) 및 다운로드 이미지(assets/images/) 전체 스캔
+        git add _posts/ assets/images/
+        
+        # 변경사항(신규 파일)이 존재할 때에만 커밋 및 푸시 수행 (변동 없을 시 오류 중단 방지)
+        if ! git diff --cached --quiet; then
+          git commit -m "style: Auto-publish morning health topic [$(date +'%Y-%m-%d')]"
+          git push origin HEAD:${{ github.ref_name }}
+          echo "성공적으로 신규 포스팅이 푸시되었습니다."
+        else
+          echo "생성된 변경 사항이 없습니다. 작업을 건너뜁니다."
+        fi
