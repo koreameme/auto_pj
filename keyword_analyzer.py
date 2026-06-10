@@ -137,7 +137,7 @@ class KeywordAnalyzer:
         Google 트렌드 RSS에서 실시간 급상승 이슈를 가져온다.
         반환: {"title": str, "summary": str}
         """
-        url = "https://trends.google.co.kr/trends/trendingsearches/daily/rss?geo=KR"
+        url = "https://trends.google.com/trending/rss?geo=KR"
         try:
             r = requests.get(url, headers=self._headers(), timeout=10)
             root = ET.fromstring(r.content)

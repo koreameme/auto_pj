@@ -130,27 +130,15 @@ class AutoPublisherController:
             raw_content = self.writer.generate_blog_post(category, topic, None)
 
         # 5단계: Jekyll/Hugo 포스팅 마크다운 파일로 영구 기록
-        saved_file = self.writer.write_to_markdown_file(category, target_keyword, raw_content)
+        saved_file, slug = self.writer.write_to_markdown_file(category, target_keyword, raw_content)
 
         logging.info("=========================================")
         logging.info(f"파이프라인 성공 완료. 생성된 포스트: {saved_file}")
         logging.info("=========================================")
 
         # 6단계: 텔레그램 발행 완료 알림 전송
-        if saved_file:
-            post_filename = os.path.basename(saved_file)
-            
-            # permalink: /:title/ 에 맞춰 날짜(YYYY-MM-DD-)와 확장자(.md)를 제외한 슬러그 파싱
-            match = re.match(r'^\d{4}-\d{2}-\d{2}-(.+)\.md$', post_filename)
-            if match:
-                post_title_slug = match.group(1)
-            else:
-                post_title_slug = post_filename.replace('.md', '')
-            
-            # 한글 URL 인코딩 처리
-            import urllib.parse
-            encoded_slug = urllib.parse.quote(post_title_slug)
-            post_url = f"https://koreameme.github.io/auto_pj/{encoded_slug}/"
+        if saved_file and slug:
+            post_url = f"https://koreameme.github.io/auto_pj/posts/{slug}/"
             
             msg = (
                 f"🎉 <b>[Top10shop] 신규 콘텐츠 발행 완료!</b>\n\n"
