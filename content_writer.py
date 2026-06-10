@@ -7,6 +7,8 @@ content_writer.py
 """
 
 import os
+import re
+import hashlib
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
@@ -77,6 +79,56 @@ def _build_slide_banner() -> str:
     return SLIDE_BANNER_HTML.format(slides=slides, dots=dots)
 
 
+def _parse_ai_response(response_text: str, keyword: str) -> dict:
+    """AI 응답 텍스트에서 [TITLE], [SLUG], [BODY]를 파싱하여 반환한다."""
+    title = keyword
+    slug = ""
+    body = response_text
+
+    # 대소문자 구분 없이 매칭하고 앞뒤 공백 제거
+    title_match = re.search(r'\[TITLE\]\s*(.*?)\s*(?=\[SLUG\]|\[BODY\]|$)', response_text, re.IGNORECASE | re.DOTALL)
+    slug_match = re.search(r'\[SLUG\]\s*(.*?)\s*(?=\[TITLE\]|\[BODY\]|$)', response_text, re.IGNORECASE | re.DOTALL)
+    body_match = re.search(r'\[BODY\]\s*(.*?)\s*(?=\[TITLE\]|\[SLUG\]|$)', response_text, re.IGNORECASE | re.DOTALL)
+
+    if title_match:
+        title = title_match.group(1).strip().replace('"', '\\"')
+    if slug_match:
+        raw_slug = slug_match.group(1).strip().lower()
+        slug = re.sub(r'[^a-z0-9-]', '-', raw_slug)
+        slug = re.sub(r'-+', '-', slug).strip('-')
+    if body_match:
+        body = body_match.group(1).strip()
+
+    if not slug:
+        h = hashlib.md5(response_text.encode('utf-8')).hexdigest()[:6]
+        slug = f"post-{h}"
+
+    # 제목이 마크다운 헤더로 시작하면 # 제거
+    if title.startswith("# "):
+        title = title[2:].strip().replace('"', '\\"')
+
+    # 구분자가 전혀 없을 때의 폴백: 첫 번째 라인을 제목으로 파싱하고 본문에서 제거
+    if not title_match and body.startswith("# "):
+        lines = body.split("\n")
+        first_line = lines[0]
+        title = first_line[2:].strip().replace('"', '\\"')
+        body = "\n".join(lines[1:]).strip()
+
+    return {"title": title, "slug": slug, "body": body}
+
+
+FORMAT_INSTRUCTION = """
+반드시 아래와 같은 포맷으로만 출력하세요. 다른 인사말이나 설명은 일절 생략하세요:
+
+[TITLE]
+(여기에 후킹성이 강한 매력적인 국문 제목을 작성)
+[SLUG]
+(여기에 제목이나 키워드에 어울리는 3~5단어 내외의 영문 소문자 및 하이픈(-) 조합의 URL 슬러그를 작성. 예: goat-milk-protein)
+[BODY]
+(여기에 마크다운 형식의 블로그 본문을 작성. 마크다운 첫 줄에 제목(#)은 넣지 마세요.)
+"""
+
+
 class ContentWriter:
 
     def __init__(self):
@@ -110,7 +162,7 @@ class ContentWriter:
         else:
             raise ValueError(f"지원하지 않는 카테고리: {category}")
 
-    def write_to_markdown_file(self, category: str, keyword: str, content: str) -> str:
+    def write_to_markdown_file(self, category: str, keyword: str, content: str) -> tuple:
         """Jekyll Front Matter를 부착해 _posts 폴더에 파일 저장."""
         output_dir = "_posts"
         os.makedirs(output_dir, exist_ok=True)
@@ -119,18 +171,13 @@ class ContentWriter:
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%Y-%m-%d %H:%M:%S +0900")
 
-        # 파일명 정제
-        safe_kw = "".join(c if c.isalnum() or c in "-_" else "_" for c in keyword)[:50]
-        filename = f"{date_str}-{safe_kw}.md"
-        file_path = os.path.join(output_dir, filename)
+        parsed = _parse_ai_response(content, keyword)
+        title = parsed["title"]
+        slug = parsed["slug"]
+        body = parsed["body"]
 
-        # 제목 추출
-        title = keyword
-        for line in content.split("\n")[:6]:
-            if line.startswith("# "):
-                title = line[2:].strip().replace('"', '\\"')
-                content = content.replace(line, "", 1).strip()
-                break
+        filename = f"{date_str}-{slug}.md"
+        file_path = os.path.join(output_dir, filename)
 
         cat_map = {"health": "health", "ai_news": "ai-news", "latest_issue": "latest-issue"}
         tag_map = {
@@ -144,16 +191,17 @@ class ContentWriter:
             f"layout: post\n"
             f"title: \"{title}\"\n"
             f"date: {time_str}\n"
+            f"permalink: /posts/{slug}/\n"
             f"categories: {cat_map.get(category, 'general')}\n"
             f"tags: [{tag_map.get(category, keyword)}]\n"
             f"---\n\n"
         )
 
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(front_matter + content)
+            f.write(front_matter + body)
 
         logging.info(f"포스팅 저장 완료: {file_path}")
-        return file_path
+        return file_path, slug
 
     # ────────────────────────────────────────────────
     # 건강 포스팅 (쿠팡 상품 포함)
@@ -187,7 +235,7 @@ class ContentWriter:
          각 상품 하단: ![상품명](이미지) 및 <a href="링크" target="_blank" rel="noopener noreferrer">▶ 최저가 및 리얼 후기 보러가기</a>
 4. 결론: 타겟별 최종 추천 + 구매 촉구
 5. 맨 마지막: 쿠팡 파트너스 수수료 안내 문구
-6. 마크다운 본문만 출력(서두 대화 제외)
+{FORMAT_INSTRUCTION}
 """
         try:
             response = self.gemini_client.models.generate_content(
@@ -224,7 +272,7 @@ class ContentWriter:
          각 상품 하단: ![상품명](이미지) 및 <a href="링크" target="_blank" rel="noopener noreferrer">▶ 최저가 및 리얼 후기 보러가기</a>
 4. 결론: 타겟별 최종 추천 + 구매 촉구
 5. 맨 마지막: 쿠팡 파트너스 수수료 안내 문구
-6. 마크다운 본문만 출력(서두 대화 제외)
+{FORMAT_INSTRUCTION}
 """
         try:
             res = self.client.chat.completions.create(
@@ -253,8 +301,12 @@ class ContentWriter:
 
 ---
 """
-        return f"""# "진작 알았더라면..." 아침방송 난리난 {keyword} 숨겨진 효능과 안 사면 손해인 가성비 TOP 3
-
+        title = f"\"진작 알았더라면...\" 아침방송 난리난 {keyword} 숨겨진 효능과 안 사면 손해인 가성비 TOP 3"
+        
+        h = hashlib.md5(keyword.encode('utf-8')).hexdigest()[:6]
+        slug = f"health-{h}-top3"
+        
+        body = f"""
 "하루라도 늦으면 되돌릴 수 없습니다. 당신의 건강은 안녕하신가요?"
 
 오늘 아침 공중파 방송에서 **{keyword}**의 충격적인 실체와 올바른 복용법이 집중 조명되었습니다.
@@ -284,6 +336,7 @@ class ContentWriter:
 ---
 *이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.*
 """.strip()
+        return f"[TITLE]\n{title}\n[SLUG]\n{slug}\n[BODY]\n{body}"
 
     # ────────────────────────────────────────────────
     # AI 뉴스 포스팅 (슬라이드 배너)
@@ -310,23 +363,26 @@ class ContentWriter:
 3. 본문: 배경·의미·독자에게 미치는 영향을 3개 소제목으로 상세 설명
 4. 결론: 앞으로 주목해야 할 포인트 + 독자 행동 유도
 5. 마크다운 본문만 출력 (슬라이드 배너 HTML은 직접 삽입할 것이므로 제외)
+{FORMAT_INSTRUCTION}
 """
             try:
                 res = self.client.chat.completions.create(
                     model="gpt-4o", temperature=0.75, max_tokens=2000,
                     messages=[{"role":"system","content":system},{"role":"user","content":user}]
                 )
-                body = res.choices[0].message.content.strip()
+                body_raw = res.choices[0].message.content.strip()
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(ai_news): {e}")
-                body = self._fallback_ai_news_body(title, summary)
+                body_raw = self._fallback_ai_news_body(title, summary)
         elif self.gemini_enabled:
-            body = self._gemini_ai_news_body(title, summary, source_link)
+            body_raw = self._gemini_ai_news_body(title, summary, source_link)
         else:
-            body = self._fallback_ai_news_body(title, summary)
+            body_raw = self._fallback_ai_news_body(title, summary)
 
-        # 슬라이드 배너를 본문 중간(결론 직전)에 삽입
-        return body + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+        parsed = _parse_ai_response(body_raw, title)
+        banner_body = parsed["body"] + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+        
+        return f"[TITLE]\n{parsed['title']}\n[SLUG]\n{parsed['slug']}\n[BODY]\n{banner_body}"
 
     def _gemini_ai_news_body(self, title: str, summary: str, source_link: str) -> str:
         system = (
@@ -343,7 +399,7 @@ class ContentWriter:
 2. 서론: 뉴스 핵심을 2~3문장으로 임팩트 있게 요약
 3. 본문: 배경·의미·독자에게 미치는 영향을 3개 소제목으로 상세 설명
 4. 결론: 앞으로 주목해야 할 포인트 + 독자 행동 유도
-5. 마크다운 본문만 출력 (설명이나 인사말 등은 제외)
+{FORMAT_INSTRUCTION}
 """
         try:
             response = self.gemini_client.models.generate_content(
@@ -359,8 +415,9 @@ class ContentWriter:
             return self._fallback_ai_news_body(title, summary)
 
     def _fallback_ai_news_body(self, title: str, summary: str) -> str:
-        return f"""# 🤖 전 세계가 주목! {title}
-
+        h = hashlib.md5(title.encode('utf-8')).hexdigest()[:6]
+        slug = f"ai-news-{h}"
+        body = f"""
 지금 AI·IT 업계에서 가장 뜨거운 이슈가 터졌습니다.
 {summary or "인공지능 기술이 또 한 번 패러다임을 바꾸는 소식이 들려오고 있습니다."}
 
@@ -382,6 +439,7 @@ AI 기술의 발전 속도가 점점 빨라지면서 일상과 산업 전반에 
 AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전반에 영향을 미칩니다.
 지금 이 흐름을 놓치지 않도록, 최신 AI 뉴스를 매일 팔로우하세요!
 """.strip()
+        return f"[TITLE]\n🤖 전 세계가 주목! {title}\n[SLUG]\n{slug}\n[BODY]\n{body}"
 
     # ────────────────────────────────────────────────
     # 최신 이슈 포스팅 (슬라이드 배너)
@@ -402,23 +460,26 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
 2. 서론: 이슈의 배경과 사람들이 관심 갖는 이유를 생생하게 소개
 3. 본문: 이슈의 전말·다양한 시각·향후 전망을 3개 소제목으로 상세 서술
 4. 결론: 핵심 정리 + 독자에게 액션 촉구
-5. 마크다운 본문만 출력 (배너 HTML 제외)
+{FORMAT_INSTRUCTION}
 """
             try:
                 res = self.client.chat.completions.create(
                     model="gpt-4o", temperature=0.8, max_tokens=2000,
                     messages=[{"role":"system","content":system},{"role":"user","content":user}]
                 )
-                body = res.choices[0].message.content.strip()
+                body_raw = res.choices[0].message.content.strip()
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(latest_issue): {e}")
-                body = self._fallback_issue_body(title, summary)
+                body_raw = self._fallback_issue_body(title, summary)
         elif self.gemini_enabled:
-            body = self._gemini_issue_body(title, summary)
+            body_raw = self._gemini_issue_body(title, summary)
         else:
-            body = self._fallback_issue_body(title, summary)
+            body_raw = self._fallback_issue_body(title, summary)
 
-        return body + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+        parsed = _parse_ai_response(body_raw, title)
+        banner_body = parsed["body"] + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+        
+        return f"[TITLE]\n{parsed['title']}\n[SLUG]\n{parsed['slug']}\n[BODY]\n{banner_body}"
 
     def _gemini_issue_body(self, title: str, summary: str) -> str:
         system = "바이럴 콘텐츠 전문가. 후킹성 강한 제목과 몰입감 있는 이슈 해설 마크다운을 작성한다."
@@ -431,7 +492,7 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
 2. 서론: 이슈의 배경과 사람들이 관심 갖는 이유를 생생하게 소개
 3. 본문: 이슈의 전말·다양한 시각·향후 전망을 3개 소제목으로 상세 서술
 4. 결론: 핵심 정리 + 독자에게 액션 촉구
-5. 마크다운 본문만 출력 (설명이나 인사말 등은 제외)
+{FORMAT_INSTRUCTION}
 """
         try:
             response = self.gemini_client.models.generate_content(
@@ -447,10 +508,11 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
             return self._fallback_issue_body(title, summary)
 
     def _fallback_issue_body(self, title: str, summary: str) -> str:
-        return f"""# 🔥 왜 갑자기 모두가 '{title}'을 검색하나? 지금 바로 확인하세요
-
+        h = hashlib.md5(title.encode('utf-8')).hexdigest()[:6]
+        slug = f"issue-{h}"
+        body = f"""
 {summary or "지금 대한민국에서 가장 뜨거운 키워드가 등장했습니다!"}
-이 이슈 하나가 오늘 하루 온라인을 가득 채웠고, 수십만 명이 동시에 검색창에 이 단어를 입력했습니다.
+이슈 하나가 오늘 하루 온라인을 가득 채웠고, 수십만 명이 동시에 검색창에 이 단어를 입력했습니다.
 
 ---
 
@@ -470,6 +532,7 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
 매일 새로운 이슈가 터지는 세상, 중요한 건 빠른 판단입니다.
 오늘 이슈도 북마크해 두고 흐름을 놓치지 마세요!
 """.strip()
+        return f"[TITLE]\n🔥 왜 갑자기 모두가 '{title}'을 검색하나? 지금 바로 확인하세요\n[SLUG]\n{slug}\n[BODY]\n{body}"
 
 
 if __name__ == "__main__":
@@ -488,5 +551,5 @@ if __name__ == "__main__":
     ]:
         print(f"\n{'='*60}")
         content = writer.generate_blog_post(cat, topic, mock_products if cat == "health" else None)
-        saved   = writer.write_to_markdown_file(cat, topic["keyword"], content)
-        print(f"[{cat}] 저장: {saved}")
+        saved_file, slug = writer.write_to_markdown_file(cat, topic["keyword"], content)
+        print(f"[{cat}] 저장: {saved_file} (슬러그: {slug})")
