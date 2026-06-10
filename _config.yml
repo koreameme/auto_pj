@@ -56,6 +56,7 @@ exclude:
   - keyword_analyzer.py
   - coupang_partner.py
   - content_writer.py
+  - telegram_notifier.py
   - requirements.txt
   - test_posts/
   - .git/
