@@ -46,19 +46,20 @@ graph TD
 
 ## 3. 개발 로드맵 (Roadmap)
 
-* [ ] **1단계: 시스템 설계 및 환경 구축**
+* [x] **1단계: 시스템 설계 및 환경 구축**
   - 개발 환경 세팅 (Python 가상환경 및 `.gitignore` 설정)
   - GitHub 원격 저장소(`koreameme001/auto_pj`) 연동
   - API Key 연동 환경 구축 (`.env` 설정 및 GitHub Secrets 가이드)
-* [ ] **2단계: 쿠팡 파트너스 API 연동 및 상품 정보 수집 개발**
+* [x] **2단계: 쿠팡 파트너스 API 연동 및 상품 정보 수집 개발**
   - 상품 검색 및 딥링크 생성 기능 구현
-* [ ] **3단계: AI 글쓰기 템플릿 및 API 연동**
+* [x] **3단계: AI 글쓰기 템플릿 및 API 연동**
   - LLM API 활용 고품질 마크다운(Front Matter 포함) 본문 생성 자동화
-* [ ] **4단계: GitHub Actions 자동 실행 및 Auto Commit/Push 구축**
-  - `.github/workflows/auto_post.yml` 작성 및 실행 테스트
+  - AI 뉴스 및 실시간 이슈 RSS 피드 수집/변환 개발 완료
+* [x] **4단계: GitHub Actions 자동 실행 및 Auto Commit/Push 구축**
+  - `.github/workflows/auto_post.yml` 작성 및 실행 테스트 (14개 시간대 다중 크론 스케줄 완료)
   - Actions 실행 중 커밋/푸시 권한 설정
-* [ ] **5단계: 스케줄링 운영 및 배포 모니터링**
-  - 주기적 자동 포스팅 작동 및 애드센스 연동 상태 점검
+* [x] **5단계: 스케줄링 운영 및 배포 모니터링**
+  - 주기적 자동 포스팅 작동 및 애드센스 연동 상태 점검 (Jekyll minima 기반 전역 애드센스 연동 완료)
 
 ---
 
@@ -86,3 +87,23 @@ OPENAI_API_KEY=your_openai_api_key_here
 COUPANG_ACCESS_KEY=your_coupang_access_key_here
 COUPANG_SECRET_KEY=your_coupang_secret_key_here
 ```
+
+---
+
+## 🚀 로컬 실행 및 강제 테스트 방법
+
+로컬 터미널에서 다음 명령어를 통해 수동으로 포스팅을 생성하고 작동을 확인할 수 있습니다:
+
+```bash
+# 기본 실행 (KST 현재 시각에 따라 자동으로 카테고리 판별)
+python main.py
+
+# 특정 카테고리 강제 실행
+python main.py --category health        # 건강 정보 + 쿠팡 상품 매칭
+python main.py --category ai_news       # 구글 뉴스 RSS 기반 AI 소식 + 슬라이드 배너
+python main.py --category latest_issue  # 구글 트렌드 실시간 이슈 + 슬라이드 배너
+```
+
+## 🛠️ Jekyll 및 구글 애드센스 설정 정보
+- Jekyll의 기본 테마인 `minima`가 설정되어 있으며, 구글 애드센스 퍼블리셔 ID(`ca-pub-8780669609800607`)는 `_includes/adsense.html`에 연동되어 있습니다.
+- 모든 포스트는 `_layouts/default.html` 레이아웃을 참조하며, 헤더 영역에 애드센스 광고 코드가 전역 적용되어 유입자 대상 광고 게재 준비가 완료되었습니다.
