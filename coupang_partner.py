@@ -52,7 +52,7 @@ class CoupangPartnerAPI:
             return self._get_mock_products(keyword, limit)
 
         method = "GET"
-        path = "/v2/providers/openapi/apis/api/v4/products/search"
+        path = "/v2/providers/affiliate_open_api/apis/openapi/products/search"
         query_string = f"keyword={requests.utils.quote(keyword)}&limit={limit}"
         
         if self.sub_id:
@@ -61,7 +61,7 @@ class CoupangPartnerAPI:
         url = f"{self.domain}{path}?{query_string}"
 
         try:
-            headers = self._generate_headers(method, path, f"?{query_string}")
+            headers = self._generate_headers(method, path, query_string)
             response = requests.request(method, url, headers=headers, timeout=10)
             
             if response.status_code == 200:
