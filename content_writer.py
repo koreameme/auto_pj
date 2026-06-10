@@ -11,6 +11,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
+from google import genai
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -79,8 +80,21 @@ def _build_slide_banner() -> str:
 class ContentWriter:
 
     def __init__(self):
+        # OpenAI 세팅
         api_key = os.getenv("OPENAI_API_KEY", "")
         self.client = OpenAI(api_key=api_key) if api_key and api_key != "your_openai_api_key_here" else None
+
+        # Gemini 세팅
+        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        self.gemini_client = None
+        self.gemini_enabled = False
+        if gemini_key and gemini_key != "your_gemini_api_key_here":
+            try:
+                self.gemini_client = genai.Client(api_key=gemini_key)
+                self.gemini_enabled = True
+                logging.info("Google Gemini API 초기화 성공")
+            except Exception as e:
+                logging.error(f"Google Gemini API 초기화 실패: {e}")
 
     # ────────────────────────────────────────────────
     # 공개 메서드
@@ -147,7 +161,46 @@ class ContentWriter:
     def _generate_health_post(self, keyword: str, products: list) -> str:
         if self.client:
             return self._gpt_health_post(keyword, products)
+        elif self.gemini_enabled:
+            return self._gemini_health_post(keyword, products)
         return self._fallback_health_post(keyword, products)
+
+    def _gemini_health_post(self, keyword: str, products: list) -> str:
+        product_info = "\n".join(
+            f"{i+1}. {p['productName']} | 가격:{p['productPrice']}원 "
+            f"| 할인:{p.get('discountRate',0)}% | 이미지:{p['productImage']} | 링크:{p['productUrl']}"
+            for i, p in enumerate(products)
+        )
+        system = (
+            "대한민국 최고 바이럴 마케터·SEO 카피라이터. "
+            "후킹성 강한 제목과 스토리텔링 본문으로 구매를 유도하는 마크다운 포스팅을 작성한다."
+        )
+        user = f"""
+키워드: {keyword}
+상품목록:
+{product_info}
+
+규칙:
+1. 제목(#): 독자의 고통·호기심 자극. 예 → "진작 알았더라면... 아침방송 난리난 {keyword} 비교 TOP3"
+2. 서론: 오늘 아침 방송 언급 + 건강 위기감 소구
+3. 상품별: 수식어(가성비 1위·재구매율 최고 등) + 장기 복용 리얼 후기 스토리텔링
+         각 상품 하단: ![상품명](이미지) 및 <a href="링크" target="_blank" rel="noopener noreferrer">▶ 최저가 및 리얼 후기 보러가기</a>
+4. 결론: 타겟별 최종 추천 + 구매 촉구
+5. 맨 마지막: 쿠팡 파트너스 수수료 안내 문구
+6. 마크다운 본문만 출력(서두 대화 제외)
+"""
+        try:
+            response = self.gemini_client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=user,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system
+                )
+            )
+            return response.text.strip()
+        except Exception as e:
+            logging.error(f"Gemini API 호출 실패(health): {e}")
+            return self._fallback_health_post(keyword, products)
 
     def _gpt_health_post(self, keyword: str, products: list) -> str:
         product_info = "\n".join(
@@ -267,11 +320,43 @@ class ContentWriter:
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(ai_news): {e}")
                 body = self._fallback_ai_news_body(title, summary)
+        elif self.gemini_enabled:
+            body = self._gemini_ai_news_body(title, summary, source_link)
         else:
             body = self._fallback_ai_news_body(title, summary)
 
         # 슬라이드 배너를 본문 중간(결론 직전)에 삽입
         return body + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+
+    def _gemini_ai_news_body(self, title: str, summary: str, source_link: str) -> str:
+        system = (
+            "AI·기술 전문 블로거. SEO 최적화된 후킹성 제목과 읽기 쉬운 "
+            "뉴스 해설 본문(마크다운)을 작성한다."
+        )
+        user = f"""
+뉴스 제목: {title}
+요약: {summary}
+원문 링크: {source_link}
+
+규칙:
+1. 제목(#): 클릭 유도 강한 후킹 문구로 변환 (예 → "전 세계가 주목! ...")
+2. 서론: 뉴스 핵심을 2~3문장으로 임팩트 있게 요약
+3. 본문: 배경·의미·독자에게 미치는 영향을 3개 소제목으로 상세 설명
+4. 결론: 앞으로 주목해야 할 포인트 + 독자 행동 유도
+5. 마크다운 본문만 출력 (설명이나 인사말 등은 제외)
+"""
+        try:
+            response = self.gemini_client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=user,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system
+                )
+            )
+            return response.text.strip()
+        except Exception as e:
+            logging.error(f"Gemini API 호출 실패(ai_news): {e}")
+            return self._fallback_ai_news_body(title, summary)
 
     def _fallback_ai_news_body(self, title: str, summary: str) -> str:
         return f"""# 🤖 전 세계가 주목! {title}
@@ -328,10 +413,38 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(latest_issue): {e}")
                 body = self._fallback_issue_body(title, summary)
+        elif self.gemini_enabled:
+            body = self._gemini_issue_body(title, summary)
         else:
             body = self._fallback_issue_body(title, summary)
 
         return body + f"\n\n---\n\n## 🛒 오늘의 쇼핑 핫딜 배너\n\n{banner}"
+
+    def _gemini_issue_body(self, title: str, summary: str) -> str:
+        system = "바이럴 콘텐츠 전문가. 후킹성 강한 제목과 몰입감 있는 이슈 해설 마크다운을 작성한다."
+        user = f"""
+이슈 키워드: {title}
+검색 동향: {summary}
+
+규칙:
+1. 제목(#): 호기심 폭발 후킹 문구 (예 → "왜 갑자기 모두가 '{title}'을 검색하나?")
+2. 서론: 이슈의 배경과 사람들이 관심 갖는 이유를 생생하게 소개
+3. 본문: 이슈의 전말·다양한 시각·향후 전망을 3개 소제목으로 상세 서술
+4. 결론: 핵심 정리 + 독자에게 액션 촉구
+5. 마크다운 본문만 출력 (설명이나 인사말 등은 제외)
+"""
+        try:
+            response = self.gemini_client.models.generate_content(
+                model='gemini-1.5-flash',
+                contents=user,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system
+                )
+            )
+            return response.text.strip()
+        except Exception as e:
+            logging.error(f"Gemini API 호출 실패(latest_issue): {e}")
+            return self._fallback_issue_body(title, summary)
 
     def _fallback_issue_body(self, title: str, summary: str) -> str:
         return f"""# 🔥 왜 갑자기 모두가 '{title}'을 검색하나? 지금 바로 확인하세요

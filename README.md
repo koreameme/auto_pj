@@ -72,7 +72,8 @@ graph TD
 2. **Settings** -> **Secrets and variables** -> **Actions** 메뉴를 클릭합니다.
 3. **New repository secret** 버튼을 눌러 다음 키들을 추가합니다.
 
-* `OPENAI_API_KEY`: OpenAI API 호출용 인증 키
+* `OPENAI_API_KEY`: OpenAI API 호출용 인증 키 (선택사항 — Gemini 키가 있으면 없어도 됨)
+* `GEMINI_API_KEY`: Google Gemini API Key (**무료** — [Google AI Studio](https://aistudio.google.com/app/apikey)에서 무료 발급)
 * `COUPANG_ACCESS_KEY`: 쿠팡 파트너스 Access Key
 * `COUPANG_SECRET_KEY`: 쿠팡 파트너스 Secret Key
 * `GH_PAT`: GitHub Actions가 본인의 리포지토리에 커밋 및 푸시할 수 있도록 권한을 주는 Personal Access Token (또는 워크플로우 권한 설정을 변경하여 `GITHUB_TOKEN`에 쓰기 권한 부여 가능)
