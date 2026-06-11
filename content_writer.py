@@ -10,7 +10,11 @@ import os
 import re
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+def _now_kst():
+    """GitHub Actions(UTC 환경) 및 로컬 모두에서 KST 시간을 정확히 반환"""
+    return datetime.now(timezone.utc) + timedelta(hours=9)
 from dotenv import load_dotenv
 from openai import OpenAI
 from google import genai
@@ -167,7 +171,7 @@ class ContentWriter:
         output_dir = "_posts"
         os.makedirs(output_dir, exist_ok=True)
 
-        now = datetime.now()
+        now = _now_kst()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%Y-%m-%d %H:%M:%S +0900")
 

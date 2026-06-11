@@ -2,21 +2,33 @@ name: Auto Revenue Blog Publisher
 
 on:
   schedule:
-    # 한국 표준시(KST) = UTC + 9
-    - cron: '0 22 * * *'   # 07:00 KST (건강)
-    - cron: '0 0 * * *'    # 09:00 KST (건강)
-    - cron: '30 1 * * *'   # 10:30 KST (건강)
-    - cron: '30 2 * * *'   # 11:30 KST (건강)
-    - cron: '0 3 * * *'    # 12:00 KST (AI 뉴스)
-    - cron: '0 4 * * *'    # 13:00 KST (최신 이슈)
-    - cron: '30 5 * * *'   # 14:30 KST (AI 뉴스)
-    - cron: '0 7 * * *'    # 16:00 KST (최신 이슈)
-    - cron: '30 8 * * *'   # 17:30 KST (AI 뉴스)
-    - cron: '30 9 * * *'   # 18:30 KST (최신 이슈)
-    - cron: '30 10 * * *'  # 19:30 KST (AI 뉴스)
-    - cron: '0 11 * * *'   # 20:00 KST (최신 이슈)
-    - cron: '0 12 * * *'   # 21:00 KST (건강)
-    - cron: '30 13 * * *'  # 22:30 KST (최신 이슈)
+    # ─── KST 기준 포스팅 스케줄 (UTC = KST - 9) ───────────────────────────
+    # [health] 하루 6회 – 쿠팡 API 사용 (1회/포스팅)
+    - cron: '30 21 * * *'  # 06:30 KST  건강
+    - cron: '0 23 * * *'   # 08:00 KST  건강
+    - cron: '0 0 * * *'    # 09:00 KST  건강
+    - cron: '30 1 * * *'   # 10:30 KST  건강
+    - cron: '0 2 * * *'    # 11:00 KST  건강
+    - cron: '0 12 * * *'   # 21:00 KST  건강
+
+    # [ai_news] 하루 7회 – 쿠팡 API 미사용
+    - cron: '0 3 * * *'    # 12:00 KST  AI뉴스
+    - cron: '0 5 * * *'    # 14:00 KST  AI뉴스
+    - cron: '0 6 * * *'    # 15:00 KST  AI뉴스
+    - cron: '0 8 * * *'    # 17:00 KST  AI뉴스
+    - cron: '30 8 * * *'   # 17:30 KST  AI뉴스
+    - cron: '0 10 * * *'   # 19:00 KST  AI뉴스
+    - cron: '30 10 * * *'  # 19:30 KST  AI뉴스
+
+    # [latest_issue] 하루 7회 – 쿠팡 API 미사용
+    - cron: '0 4 * * *'    # 13:00 KST  최신이슈
+    - cron: '0 7 * * *'    # 16:00 KST  최신이슈
+    - cron: '0 9 * * *'    # 18:00 KST  최신이슈
+    - cron: '30 9 * * *'   # 18:30 KST  최신이슈
+    - cron: '0 11 * * *'   # 20:00 KST  최신이슈
+    - cron: '30 13 * * *'  # 22:30 KST  최신이슈
+    - cron: '30 14 * * *'  # 23:30 KST  최신이슈
+
   workflow_dispatch:
     inputs:
       category:

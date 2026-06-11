@@ -3,7 +3,11 @@ import requests
 import logging
 import re
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+def _now_kst():
+    """GitHub Actions(UTC 환경) 및 로컬 모두에서 KST 시간을 정확히 반환"""
+    return datetime.now(timezone.utc) + timedelta(hours=9)
 from dotenv import load_dotenv
 
 # 모듈 로드
@@ -59,7 +63,7 @@ class AutoPublisherController:
     def _download_product_images(self, keyword: str, products: list) -> list:
         """[방안 B] 상품 썸네일 이미지를 다운로드하여 로컬 assets 폴더에 저장하고 상대 경로로 업데이트"""
         self._ensure_directories()
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = _now_kst().strftime("%Y-%m-%d")
         
         # 파일명 정제 (한글/영어/숫자 외 제거)
         safe_keyword = re.sub(r'[^a-zA-Z0-9가-힣_-]', '_', keyword)
@@ -146,7 +150,7 @@ class AutoPublisherController:
                 f"📌 <b>포스팅 정보</b>\n"
                 f"• <b>타겟 키워드</b>: {target_keyword}\n"
                 f"• <b>카테고리</b>: {category}\n"
-                f"• <b>발행 일시</b>: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"• <b>발행 일시</b>: {_now_kst().strftime('%Y-%m-%d %H:%M:%S')} (KST)\n\n"
                 f"🔗 <b>생성된 블로그 포스트 보기</b>\n"
                 f"<a href=\"{post_url}\">{post_url}</a>\n\n"
                 f"✅ GitHub Actions 저장소 동기화가 진행 중이며, 잠시 후 위 링크에서 확인하실 수 있습니다."
