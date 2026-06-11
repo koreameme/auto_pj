@@ -209,6 +209,9 @@ class ContentWriter:
         slug = parsed["slug"]
         body = parsed["body"]
 
+        # 본문에 간혹 들어가는 잘못된 이미지 도메인 주소(예: https://auto_pj/...) 보정
+        body = re.sub(r'https?://auto_pj/assets/images/', r'/auto_pj/assets/images/', body)
+
         filename = f"{date_str}-{slug}.md"
         file_path = os.path.join(output_dir, filename)
 
