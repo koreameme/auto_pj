@@ -186,12 +186,33 @@ class ContentWriter:
             "latest_issue": "이슈, 실시간트렌드, 핫뉴스",
         }
 
+        # ─── 대표 이미지(썸네일) 파싱 및 기본 이미지 매핑 로직 ───
+        img_match = re.search(r'!\[.*?\]\((.*?)\)', body)
+        image_path = ""
+        if img_match:
+            raw_img_path = img_match.group(1).strip()
+            # baseurl 제거 처리 (예: /auto_pj/assets/images/... -> assets/images/...)
+            baseurl = "/auto_pj"
+            if raw_img_path.startswith(f"{baseurl}/"):
+                image_path = raw_img_path[len(baseurl)+1:]
+            elif raw_img_path.startswith("/"):
+                image_path = raw_img_path[1:]
+            else:
+                image_path = raw_img_path
+        else:
+            # 본문에 이미지가 없을 때 (ai_news, latest_issue 등)
+            # title 해시값 기반으로 assets/images/1.jpg ~ 17.jpg 중 하나 지정
+            h_val = int(hashlib.md5(title.encode('utf-8')).hexdigest(), 16)
+            img_idx = (h_val % 17) + 1
+            image_path = f"assets/images/{img_idx}.jpg"
+
         front_matter = (
             f"---\n"
             f"layout: post\n"
             f"title: \"{title}\"\n"
             f"date: {time_str}\n"
             f"permalink: /posts/{slug}/\n"
+            f"image: {image_path}\n"
             f"categories: {cat_map.get(category, 'general')}\n"
             f"tags: [{tag_map.get(category, keyword)}]\n"
             f"---\n\n"
@@ -200,7 +221,7 @@ class ContentWriter:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(front_matter + body)
 
-        logging.info(f"포스팅 저장 완료: {file_path}")
+        logging.info(f"포스팅 저장 완료: {file_path} (대표 이미지: {image_path})")
         return file_path, slug
 
     # ────────────────────────────────────────────────
@@ -239,7 +260,7 @@ class ContentWriter:
 """
         try:
             response = self.gemini_client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=user,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system
@@ -403,7 +424,7 @@ class ContentWriter:
 """
         try:
             response = self.gemini_client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=user,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system
@@ -496,7 +517,7 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
 """
         try:
             response = self.gemini_client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=user,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system
