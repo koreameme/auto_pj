@@ -5,6 +5,10 @@ description: "수만 건의 실구매 후기와 가격 데이터를 분석해 �
 url: "https://koreameme.github.io"
 baseurl: "/auto_pj"
 
+# Include
+include:
+  - _pages
+
 # Authors
 authors:
   admin:
