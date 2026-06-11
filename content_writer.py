@@ -15,6 +15,35 @@ from datetime import datetime, timedelta, timezone
 def _now_kst():
     """GitHub Actions(UTC 환경) 및 로컬 모두에서 KST 시간을 정확히 반환"""
     return datetime.now(timezone.utc) + timedelta(hours=9)
+
+def _make_description(body: str, max_len: int = 155) -> str:
+    """본문에서 SEO용 meta description 자동 추출 (이모지·마크다운 제거)"""
+    # HTML 태그 제거
+    text = re.sub(r'<[^>]+>', '', body)
+    # 마크다운 이미지/링크 제거
+    text = re.sub(r'!\[.*?\]\(.*?\)', '', text)
+    text = re.sub(r'\[([^\]]+)\]\(.*?\)', r'\1', text)
+    # 마크다운 기호 제거
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'[*_`~>#\-]', '', text)
+    # 이모지 제거 (유니코드 대역 기반)
+    text = re.sub(r'[\U00010000-\U0010ffff]', '', text)
+    # 불필요한 공백/개행 정리
+    text = re.sub(r'\s+', ' ', text).strip()
+    if not text:
+        return ""
+    
+    # 문장 구분을 위해 온점으로 쪼개어 첫 번째 의미 있는 문장을 찾는다.
+    for part in text.split('.'):
+        part = part.strip()
+        if len(part) > 20:
+            desc = (part[:max_len] + '...') if len(part) > max_len else part + '.'
+            return desc.replace('"', "'")
+            
+    # 의미 있는 긴 문장이 없으면 그냥 잘라서 반환
+    desc = (text[:max_len] + '...') if len(text) > max_len else text
+    return desc.replace('"', "'")
+
 from dotenv import load_dotenv
 from openai import OpenAI
 from google import genai
@@ -210,6 +239,7 @@ class ContentWriter:
             img_idx = (h_val % 17) + 1
             image_path = f"assets/images/{img_idx}.jpg"
 
+        description = _make_description(body)
         front_matter = (
             f"---\n"
             f"layout: post\n"
@@ -217,6 +247,8 @@ class ContentWriter:
             f"date: {time_str}\n"
             f"permalink: /posts/{slug}/\n"
             f"image: {image_path}\n"
+            f"author: admin\n"
+            f"description: \"{description}\"\n"
             f"categories: {cat_map.get(category, 'general')}\n"
             f"tags: [{tag_map.get(category, keyword)}]\n"
             f"---\n\n"

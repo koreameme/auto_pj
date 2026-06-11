@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://koreameme.github.io/auto_pj/sitemap.xml
