@@ -124,7 +124,7 @@ def _parse_ai_response(response_text: str, keyword: str) -> dict:
     body_match = re.search(r'\[BODY\]\s*(.*?)\s*(?=\[TITLE\]|\[SLUG\]|$)', response_text, re.IGNORECASE | re.DOTALL)
 
     if title_match:
-        title = title_match.group(1).strip().replace('"', '\\"')
+        title = title_match.group(1).strip().replace('"', "'")
     if slug_match:
         raw_slug = slug_match.group(1).strip().lower()
         slug = re.sub(r'[^a-z0-9-]', '-', raw_slug)
@@ -138,13 +138,13 @@ def _parse_ai_response(response_text: str, keyword: str) -> dict:
 
     # 제목이 마크다운 헤더로 시작하면 # 제거
     if title.startswith("# "):
-        title = title[2:].strip().replace('"', '\\"')
+        title = title[2:].strip().replace('"', "'")
 
     # 구분자가 전혀 없을 때의 폴백: 첫 번째 라인을 제목으로 파싱하고 본문에서 제거
     if not title_match and body.startswith("# "):
         lines = body.split("\n")
         first_line = lines[0]
-        title = first_line[2:].strip().replace('"', '\\"')
+        title = first_line[2:].strip().replace('"', "'")
         body = "\n".join(lines[1:]).strip()
 
     return {"title": title, "slug": slug, "body": body}

@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "🚨속보🚨 \\"최저임금\\" 실검 1위! 내 월급과 가게 운명이 걸린 '이 전쟁', 대체 무슨 일이야?"
+title: "🚨속보🚨 '최저임금' 실검 1위! 내 월급과 가게 운명이 걸린 '이 전쟁', 대체 무슨 일이야?"
 date: 2026-06-11 23:34:45 +0900
 permalink: /posts/minimum-wage-war-korea/
 image: assets/images/8.jpg

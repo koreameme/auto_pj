@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "\\"갑자기 '크레이지아케이드'가 실검에 뜬 이유? 추억 소환을 넘어선 그들의 은밀한 전략!\\""
+title: "갑자기 '크레이지아케이드'가 실검에 뜬 이유? 추억 소환을 넘어선 그들의 은밀한 전략!"
 date: 2026-06-11 18:13:14 +0900
 permalink: /posts/crazy-arcade-secret-strategy/
 image: assets/images/4.jpg
