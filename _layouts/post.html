@@ -159,8 +159,8 @@ post_class: post-template
   "@context": "https://schema.org",
   "@type": "Article",
   "headline": "{{ page.title | escape }}",
-  "datePublished": "{{ page.date | date_to_xmlschema }}",
-  "dateModified": "{{ page.last_modified_at | default: page.date | date_to_xmlschema }}",
+  "datePublished": "{{ page.date | date: '%Y-%m-%dT%H:%M:%SZ' }}",
+  "dateModified": "{{ page.last_modified_at | default: page.date | date: '%Y-%m-%dT%H:%M:%SZ' }}",
   "author": {
     "@type": "Person",
     "name": "admin"
