@@ -10,6 +10,7 @@ import os
 import re
 import hashlib
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 def _now_kst():
@@ -169,21 +170,73 @@ class ContentWriter:
         api_key = os.getenv("OPENAI_API_KEY", "")
         self.client = OpenAI(api_key=api_key) if api_key and api_key != "your_openai_api_key_here" else None
 
-        # Gemini 세팅
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        # Gemini 세팅 (다중 API 키 로드)
+        gemini_keys_str = os.getenv("GEMINI_API_KEYS", "")
+        self.api_keys = [k.strip() for k in gemini_keys_str.split(",") if k.strip()]
+        
+        # GEMINI_API_KEYS가 없으면 기존 GEMINI_API_KEY 사용
+        if not self.api_keys:
+            single_key = os.getenv("GEMINI_API_KEY", "")
+            if single_key and single_key != "your_gemini_api_key_here":
+                self.api_keys = [single_key]
+        
+        self.current_key_idx = 0
         self.gemini_client = None
         self.gemini_enabled = False
-        if gemini_key and gemini_key != "your_gemini_api_key_here":
+        
+        if self.api_keys:
             try:
-                self.gemini_client = genai.Client(api_key=gemini_key)
+                self.gemini_client = genai.Client(api_key=self.api_keys[self.current_key_idx])
                 self.gemini_enabled = True
-                logging.info("Google Gemini API 초기화 성공")
+                logging.info(f"Google Gemini API 초기화 성공 (총 {len(self.api_keys)}개 키 로드)")
             except Exception as e:
                 logging.error(f"Google Gemini API 초기화 실패: {e}")
 
     # ────────────────────────────────────────────────
     # 공개 메서드
     # ────────────────────────────────────────────────
+    def _call_gemini_api(self, user_prompt: str, system_prompt: str) -> str:
+        """429 쿼터 초과 시 API 키를 자동으로 다음 키로 로테이션하여 호출하는 헬퍼 메서드"""
+        if not self.gemini_enabled or not self.api_keys:
+            raise Exception("Gemini API가 활성화되지 않았거나 API 키가 없습니다.")
+            
+        total_keys = len(self.api_keys)
+        
+        for attempt in range(total_keys):
+            try:
+                # 현재 클라이언트가 없거나 인덱스가 바뀐 경우 재생성
+                if self.gemini_client is None:
+                    self.gemini_client = genai.Client(api_key=self.api_keys[self.current_key_idx])
+                    
+                response = self.gemini_client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=user_prompt,
+                    config=genai.types.GenerateContentConfig(
+                        system_instruction=system_prompt
+                    )
+                )
+                return response.text.strip()
+            except Exception as e:
+                err_str = str(e)
+                # 429 Resource Exhausted 에러 발생 시 다음 키로 스위칭
+                if '429' in err_str:
+                    next_idx = (self.current_key_idx + 1) % total_keys
+                    logging.warning(
+                        f"Gemini API 429 쿼터 초과 감지. "
+                        f"현재 키(인덱스 {self.current_key_idx}) -> 다음 키(인덱스 {next_idx})로 전환하여 재시도합니다. (시도 {attempt + 1}/{total_keys})"
+                    )
+                    self.current_key_idx = next_idx
+                    # 클라이언트 객체 초기화 (다음 루프에서 새 키로 재생성되도록 함)
+                    self.gemini_client = None
+                    time.sleep(1) # 짧은 대기 후 즉시 재시도
+                    continue
+                # 429 외의 다른 에러는 즉시 예외를 발생시킴
+                logging.error(f"Gemini API 호출 중 오류 발생: {e}")
+                raise e
+                
+        # 모든 키가 한도 초과된 경우
+        raise Exception("모든 등록된 Gemini API 키의 하루 쿼터(한도)가 초과되었습니다.")
+
     def generate_blog_post(self, category: str, topic: dict, products: list = None) -> str:
         """카테고리에 따라 적합한 포스팅 본문(마크다운)을 생성한다."""
         if category == "health":
@@ -298,14 +351,7 @@ class ContentWriter:
 {FORMAT_INSTRUCTION}
 """
         try:
-            response = self.gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=user,
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=system
-                )
-            )
-            return response.text.strip()
+            return self._call_gemini_api(user, system)
         except Exception as e:
             logging.error(f"Gemini API 호출 실패(health): {e}")
             return self._fallback_health_post(keyword, products)
@@ -462,14 +508,7 @@ class ContentWriter:
 {FORMAT_INSTRUCTION}
 """
         try:
-            response = self.gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=user,
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=system
-                )
-            )
-            return response.text.strip()
+            return self._call_gemini_api(user, system)
         except Exception as e:
             logging.error(f"Gemini API 호출 실패(ai_news): {e}")
             return self._fallback_ai_news_body(title, summary)
@@ -555,14 +594,7 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
 {FORMAT_INSTRUCTION}
 """
         try:
-            response = self.gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=user,
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=system
-                )
-            )
-            return response.text.strip()
+            return self._call_gemini_api(user, system)
         except Exception as e:
             logging.error(f"Gemini API 호출 실패(latest_issue): {e}")
             return self._fallback_issue_body(title, summary)
