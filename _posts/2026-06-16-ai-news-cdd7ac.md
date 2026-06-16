@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "🤖 전 세계가 주목! 인공지능(AI)과의 대화 - v.daum.net"
-date: 2026-06-16 15:55:04 +0900
+date: 2026-06-16 19:08:35 +0900
 permalink: /posts/ai-news-cdd7ac/
 image: assets/images/16.jpg
 author: admin
