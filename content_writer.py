@@ -170,15 +170,27 @@ class ContentWriter:
         api_key = os.getenv("OPENAI_API_KEY", "")
         self.client = OpenAI(api_key=api_key) if api_key and api_key != "your_openai_api_key_here" else None
 
+        # 디버그 로그용 리스트 초기화
+        self.debug_logs = []
+        self.debug_logs.append("=== ContentWriter Initialization Debug ===")
+
         # Gemini 세팅 (다중 API 키 로드)
         gemini_keys_str = os.getenv("GEMINI_API_KEYS", "")
         self.api_keys = [k.strip() for k in gemini_keys_str.split(",") if k.strip()]
         
+        self.debug_logs.append(f"GEMINI_API_KEYS 환경변수 길이: {len(gemini_keys_str)}")
+        
         # GEMINI_API_KEYS가 없으면 기존 GEMINI_API_KEY 사용
         if not self.api_keys:
             single_key = os.getenv("GEMINI_API_KEY", "")
+            self.debug_logs.append(f"GEMINI_API_KEY 환경변수 존재 여부: {bool(single_key)}")
             if single_key and single_key != "your_gemini_api_key_here":
                 self.api_keys = [single_key]
+        
+        self.debug_logs.append(f"로드된 API 키 개수: {len(self.api_keys)}")
+        if self.api_keys:
+            masked = [f"{k[:6]}...{k[-4:]}" if len(k) > 10 else "invalid_key" for k in self.api_keys]
+            self.debug_logs.append(f"로드된 API 키 목록: {', '.join(masked)}")
         
         self.current_key_idx = 0
         self.gemini_client = None
@@ -189,8 +201,10 @@ class ContentWriter:
                 self.gemini_client = genai.Client(api_key=self.api_keys[self.current_key_idx])
                 self.gemini_enabled = True
                 logging.info(f"Google Gemini API 초기화 성공 (총 {len(self.api_keys)}개 키 로드)")
+                self.debug_logs.append(f"Google Gemini API 초기화 성공 (첫 번째 키 활성화)")
             except Exception as e:
                 logging.error(f"Google Gemini API 초기화 실패: {e}")
+                self.debug_logs.append(f"Google Gemini API 초기화 실패 에러: {e}")
 
     # ────────────────────────────────────────────────
     # 공개 메서드
@@ -198,6 +212,7 @@ class ContentWriter:
     def _call_gemini_api(self, user_prompt: str, system_prompt: str) -> str:
         """429 쿼터 초과 시 API 키를 자동으로 다음 키로 로테이션하여 호출하는 헬퍼 메서드"""
         if not self.gemini_enabled or not self.api_keys:
+            self.debug_logs.append("API 호출 차단: Gemini API가 비활성화되어 있거나 키 목록이 비어있습니다.")
             raise Exception("Gemini API가 활성화되지 않았거나 API 키가 없습니다.")
             
         total_keys = len(self.api_keys)
@@ -215,9 +230,11 @@ class ContentWriter:
                         system_instruction=system_prompt
                     )
                 )
+                self.debug_logs.append(f"API 호출 성공 (시도 #{attempt+1}, 사용된 키 인덱스: {self.current_key_idx})")
                 return response.text.strip()
             except Exception as e:
                 err_str = str(e)
+                self.debug_logs.append(f"API 호출 실패 (시도 #{attempt+1}, 키 인덱스: {self.current_key_idx}) - 에러: {err_str[:120]}")
                 # 429 Resource Exhausted 에러 발생 시 다음 키로 스위칭
                 if '429' in err_str:
                     next_idx = (self.current_key_idx + 1) % total_keys
@@ -232,9 +249,11 @@ class ContentWriter:
                     continue
                 # 429 외의 다른 에러는 즉시 예외를 발생시킴
                 logging.error(f"Gemini API 호출 중 오류 발생: {e}")
+                self.debug_logs.append(f"API 호출 즉시 중단 에러: {err_str[:120]}")
                 raise e
                 
         # 모든 키가 한도 초과된 경우
+        self.debug_logs.append("API 호출 최종 실패: 모든 API 키의 하루 쿼터(429)가 초과되었습니다.")
         raise Exception("모든 등록된 Gemini API 키의 하루 쿼터(한도)가 초과되었습니다.")
 
     def generate_blog_post(self, category: str, topic: dict, products: list = None) -> str:
@@ -310,8 +329,13 @@ class ContentWriter:
             f"---\n\n"
         )
 
+        # 포스팅 하단에 디버그용 HTML 주석을 덧붙임
+        debug_comment = ""
+        if hasattr(self, 'debug_logs') and self.debug_logs:
+            debug_comment = "\n\n<!-- [AI GENERATION DEBUG]\n" + "\n".join(self.debug_logs) + "\n-->"
+
         with open(file_path, "w", encoding="utf-8") as f:
-            f.write(front_matter + body)
+            f.write(front_matter + body + debug_comment)
 
         logging.info(f"포스팅 저장 완료: {file_path} (대표 이미지: {image_path})")
         return file_path, slug
