@@ -258,6 +258,7 @@ class ContentWriter:
 
     def generate_blog_post(self, category: str, topic: dict, products: list = None) -> str:
         """카테고리에 따라 적합한 포스팅 본문(마크다운)을 생성한다."""
+        self.ai_generated_last = False # AI 작동 여부 초기화
         if category == "health":
             return self._generate_health_post(topic["keyword"], products or [])
         elif category == "ai_news":
@@ -345,9 +346,26 @@ class ContentWriter:
     # ────────────────────────────────────────────────
     def _generate_health_post(self, keyword: str, products: list) -> str:
         if self.client:
-            return self._gpt_health_post(keyword, products)
+            try:
+                result = self._gpt_health_post(keyword, products)
+                self.ai_generated_last = True
+                return result
+            except Exception as e:
+                logging.error(f"OpenAI 호출 실패(health): {e}")
+                if self.gemini_enabled:
+                    try:
+                        result = self._gemini_health_post(keyword, products)
+                        self.ai_generated_last = True
+                        return result
+                    except Exception as ge:
+                        logging.error(f"Gemini fallback 호출 실패(health): {ge}")
         elif self.gemini_enabled:
-            return self._gemini_health_post(keyword, products)
+            try:
+                result = self._gemini_health_post(keyword, products)
+                self.ai_generated_last = True
+                return result
+            except Exception as e:
+                logging.error(f"Gemini 호출 실패(health): {e}")
         return self._fallback_health_post(keyword, products)
 
     def _gemini_health_post(self, keyword: str, products: list) -> str:
@@ -501,11 +519,17 @@ class ContentWriter:
                     messages=[{"role":"system","content":system},{"role":"user","content":user}]
                 )
                 body_raw = res.choices[0].message.content.strip()
+                self.ai_generated_last = True
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(ai_news): {e}")
-                body_raw = self._fallback_ai_news_body(title, summary)
+                if self.gemini_enabled:
+                    body_raw = self._gemini_ai_news_body(title, summary, source_link)
+                    self.ai_generated_last = True
+                else:
+                    body_raw = self._fallback_ai_news_body(title, summary)
         elif self.gemini_enabled:
             body_raw = self._gemini_ai_news_body(title, summary, source_link)
+            self.ai_generated_last = True
         else:
             body_raw = self._fallback_ai_news_body(title, summary)
 
@@ -596,16 +620,19 @@ AI 트렌드는 단순한 기술 이슈를 넘어 **투자·취업·교육** 전
                     messages=[{"role":"system","content":system},{"role":"user","content":user}]
                 )
                 body_raw = res.choices[0].message.content.strip()
+                self.ai_generated_last = True
             except Exception as e:
                 logging.error(f"OpenAI 호출 실패(latest_issue): {e}")
                 # OpenAI 실패 시 Gemini fallback 시도
                 if self.gemini_enabled:
                     logging.info("OpenAI 실패 -> Gemini로 latest_issue 생성 재시도")
                     body_raw = self._gemini_issue_body(title, summary)
+                    self.ai_generated_last = True
                 else:
                     body_raw = self._fallback_issue_body(title, summary)
         elif self.gemini_enabled:
             body_raw = self._gemini_issue_body(title, summary)
+            self.ai_generated_last = True
         else:
             body_raw = self._fallback_issue_body(title, summary)
 

@@ -144,9 +144,24 @@ class AutoPublisherController:
         if saved_file and slug:
             post_url = f"https://koreameme.github.io/auto_pj/posts/{slug}/"
             
+            # AI 작성 여부에 따라 배지 및 메시지 분기
+            ai_generated = getattr(self.writer, 'ai_generated_last', False)
+            if ai_generated:
+                # 어느 AI 엔진이 사용됐는지 판별
+                if self.writer.client:
+                    ai_engine = "ChatGPT (GPT-4o)"
+                else:
+                    ai_engine = "Gemini 2.5 Flash"
+                ai_badge = f"🤖 <b>AI 작성 완료</b> ({ai_engine})"
+                ai_desc = f"AI가 키워드를 분석하고 직접 작성한 오리지널 콘텐츠입니다."
+            else:
+                ai_badge = "📝 <b>기본 템플릿 사용</b>"
+                ai_desc = "⚠️ AI API 호출에 실패하여 기본 템플릿으로 생성되었습니다. API 키 상태를 확인해 주세요."
+            
             msg = (
                 f"🎉 <b>[Top10shop] 신규 콘텐츠 발행 완료!</b>\n\n"
-                f"수집된 데이터와 AI 분석을 기반으로 고품질의 포스팅이 블로그에 자동 배포되었습니다.\n\n"
+                f"{ai_badge}\n"
+                f"{ai_desc}\n\n"
                 f"📌 <b>포스팅 정보</b>\n"
                 f"• <b>타겟 키워드</b>: {target_keyword}\n"
                 f"• <b>카테고리</b>: {category}\n"
