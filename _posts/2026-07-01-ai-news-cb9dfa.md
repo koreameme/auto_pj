@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "🤖 전 세계가 주목! 인공지능(AI) 융합, 농업혁신의 날개를 달다 - 영농자재신문"
-date: 2026-07-01 14:58:53 +0900
+date: 2026-07-01 17:50:13 +0900
 permalink: /posts/ai-news-cb9dfa/
 image: assets/images/3.jpg
 author: admin
