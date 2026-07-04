@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "🤖 전 세계가 주목! INSS 이슈브리프 '트럼프 인공지능(AI) 정책의 확장 : 혁신과 안보의 균형점' 양지수 - SPN 서울평양뉴스"
-date: 2026-07-04 14:03:16 +0900
+date: 2026-07-04 19:31:46 +0900
 permalink: /posts/ai-news-cedfa9/
 image: assets/images/17.jpg
 author: admin
